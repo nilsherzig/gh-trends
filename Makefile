@@ -8,4 +8,4 @@ push:
 
 .PHONY: run
 run:
-	docker run --rm -p 8080:80 --name trending-app nilsherzig/gh-trends:latest
+	docker run --rm -p 9999:80 --name trending-app nilsherzig/gh-trends:latest

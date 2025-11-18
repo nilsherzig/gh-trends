@@ -17,6 +17,7 @@
             --input-bg: #21262d;
             --input-border: #444;
             --danger-color: #f85149;
+            --hover-bg: #30363d;
         }
 
         body {
@@ -43,12 +44,20 @@
             justify-content: center;
             flex-wrap: wrap;
             flex-direction: row;
+            align-items: flex-start;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
 
         label {
             font-weight: bold;
         }
 
+        /* Generic Input Styles */
         select,
         input[type="text"],
         button {
@@ -67,6 +76,72 @@
         button:hover {
             border-color: #555;
         }
+
+        /* --- NEW: Searchable Language Selector Styles --- */
+        .language-selector-wrapper {
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #language-search {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            margin-bottom: 0;
+        }
+
+        .checkbox-list {
+            height: 150px;
+            overflow-y: auto;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            user-select: none;
+            font-weight: normal;
+            /* Override bold label */
+        }
+
+        .checkbox-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-item.hidden {
+            display: none;
+        }
+
+        /* Scrollbar styling */
+        .checkbox-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .checkbox-list::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        .checkbox-list::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 4px;
+        }
+
+        /* ------------------------------------------------ */
 
         .metadata-item {
             border: 1px solid var(--border-color);
@@ -134,6 +209,7 @@
             --input-bg: #ffffff;
             --input-border: #d1d5da;
             --danger-color: #d73a49;
+            --hover-bg: #ebf0f4;
         }
 
         .filter-management {
@@ -259,7 +335,6 @@
             opacity: 0.6;
         }
 
-        /* *** NEW: FOOTER STYLES *** */
         footer {
             text-align: center;
             margin-top: 30px;
@@ -289,14 +364,29 @@
     <h1>GitHub Trending Repositories</h1>
 
     <div class="controls">
-        <div> <label for="language-select">Language:</label> <select id="language-select">
-                <option value="all">All Languages</option>
-            </select> </div>
-        <div> <label for="timeframe-select">Time Frame:</label> <select id="timeframe-select">
+
+        <!-- Modified Language Control Group -->
+        <div class="control-group">
+            <label>Languages:</label>
+            <div class="language-selector-wrapper">
+                <input type="text" id="language-search" placeholder="Search languages..." autocomplete="off">
+                <div id="language-list" class="checkbox-list">
+                    <!-- Checkboxes will be injected here -->
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="all" checked> All Languages
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="timeframe-select">Time Frame:</label>
+            <select id="timeframe-select">
                 <option value="daily" selected>Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
-            </select> </div>
+            </select>
+        </div>
     </div>
 
     <div class="filter-management">
@@ -321,7 +411,6 @@
         <div class="loader">Loading...</div>
     </div>
 
-    <!-- *** NEW: FOOTER SECTION *** -->
     <footer>
         <p><a href="https://github.com/nilsherzig/gh-trends" target="_blank" rel="noopener noreferrer">
                 Source
@@ -337,7 +426,6 @@
     </footer>
 
     <script>
-        const languageSelect = document.getElementById('language-select');
         const timeframeSelect = document.getElementById('timeframe-select');
         const resultsContainer = document.getElementById('results');
         const filterTermInput = document.getElementById('filter-term-input');
@@ -346,9 +434,11 @@
         const filteredCounterSpan = document.getElementById('filtered-counter');
         const showFilteredToggle = document.getElementById('show-filtered-toggle');
 
+        // New Elements for Searchable List
+        const languageSearchInput = document.getElementById('language-search');
+        const languageListContainer = document.getElementById('language-list');
+
         let filterTerms = [];
-        // The Nginx server will proxy these requests to the external APIs.
-        // This avoids direct client-side cross-origin requests and allows for caching.
         const LANGUAGES_URL = '/data/languages.json';
         const BASE_TRENDING_URL = '/data';
 
@@ -369,34 +459,168 @@
         }
 
         async function fetchLanguages() {
-            try {const response = await fetch(LANGUAGES_URL); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); const languages = await response.json(); languages.forEach(lang => {if (lang && lang.name && Array.isArray(lang.aliases) && lang.aliases.length > 0) {const option = document.createElement('option'); option.value = lang.aliases[0]; option.textContent = lang.name; languageSelect.appendChild(option);} });} catch (error) {console.error("Failed to fetch languages:", error);}
+            try {
+                const response = await fetch(LANGUAGES_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const languages = await response.json();
+
+                // Clear list but keep "All Languages"
+                languageListContainer.innerHTML = '';
+
+                // Add "All Languages" manually
+                const allLabel = document.createElement('label');
+                allLabel.className = 'checkbox-item';
+                allLabel.innerHTML = `<input type="checkbox" value="all" checked> All Languages`;
+                languageListContainer.appendChild(allLabel);
+
+                // Sort languages alphabetically
+                languages.sort((a, b) => a.name.localeCompare(b.name));
+
+                languages.forEach(lang => {
+                    if (lang && lang.name && Array.isArray(lang.aliases) && lang.aliases.length > 0) {
+                        const label = document.createElement('label');
+                        label.className = 'checkbox-item';
+                        // Store name for searching
+                        label.dataset.name = lang.name.toLowerCase();
+                        label.innerHTML = `<input type="checkbox" value="${lang.aliases[0]}"> ${lang.name}`;
+                        languageListContainer.appendChild(label);
+                    }
+                });
+
+                setupLanguageCheckboxListeners();
+
+            } catch (error) {
+                console.error("Failed to fetch languages:", error);
+            }
         }
+
+        function setupLanguageCheckboxListeners() {
+            const checkboxes = languageListContainer.querySelectorAll('input[type="checkbox"]');
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const val = e.target.value;
+
+                    if (val === 'all') {
+                        // If "All" is checked, uncheck everything else
+                        if (e.target.checked) {
+                            checkboxes.forEach(c => {
+                                if (c.value !== 'all') c.checked = false;
+                            });
+                        } else {
+                            // Prevent unchecking "All" if it leaves nothing selected
+                            const anyOtherChecked = Array.from(checkboxes).some(c => c.value !== 'all' && c.checked);
+                            if (!anyOtherChecked) e.target.checked = true;
+                        }
+                    } else {
+                        // If a specific language is checked
+                        if (e.target.checked) {
+                            // Uncheck "All"
+                            const allCb = languageListContainer.querySelector('input[value="all"]');
+                            if (allCb) allCb.checked = false;
+                        } else {
+                            // If everything is unchecked, check "All"
+                            const anyChecked = Array.from(checkboxes).some(c => c.checked);
+                            if (!anyChecked) {
+                                const allCb = languageListContainer.querySelector('input[value="all"]');
+                                if (allCb) allCb.checked = true;
+                            }
+                        }
+                    }
+                    // Trigger fetch
+                    fetchAndDisplayData();
+                });
+            });
+        }
+
+        // Search functionality for languages
+        languageSearchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const items = languageListContainer.querySelectorAll('.checkbox-item');
+
+            items.forEach(item => {
+                const input = item.querySelector('input');
+                // Always show "All Languages" or check text match
+                if (input.value === 'all') return;
+
+                const name = item.innerText.toLowerCase();
+                if (name.includes(term)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        });
 
         function escapeRegExp(string) {
             return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
-        async function fetchAndDisplayData() {
-            const language = languageSelect.value;
-            const timeframe = timeframeSelect.value;
-            if (!language) return;
+        function getSelectedLanguages() {
+            const checkedBoxes = languageListContainer.querySelectorAll('input[type="checkbox"]:checked');
+            const values = Array.from(checkedBoxes).map(cb => cb.value);
 
-            window.location.hash = `${timeframe}/${language}`;
-            const url = `${BASE_TRENDING_URL}/${timeframe}/${language}.json`;
+            // If "all" is selected or logic fails, return ['all']
+            if (values.includes('all') || values.length === 0) {
+                return ['all'];
+            }
+            return values;
+        }
+
+        async function fetchAndDisplayData() {
+            // 1. Get selected languages
+            let languages = getSelectedLanguages();
+
+            const timeframe = timeframeSelect.value;
+
+            // 2. Update URL anchor with comma-separated languages
+            window.location.hash = `${timeframe}/${languages.join(',')}`;
+
             resultsContainer.innerHTML = '<div class="loader">Fetching data...</div>';
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error!`);
-                const data = await response.json();
+                // 3. Fetch data for all selected languages in parallel
+                const fetchPromises = languages.map(lang => {
+                    const url = `${BASE_TRENDING_URL}/${timeframe}/${lang}.json`;
+                    return fetch(url)
+                        .then(res => {
+                            if (!res.ok) throw new Error(`Failed to fetch ${lang}`);
+                            return res.json();
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            return {items: []}; // Return empty if one language fails
+                        });
+                });
 
+                const results = await Promise.all(fetchPromises);
+
+                // 4. Merge results
+                let allItems = [];
+                const seenUrls = new Set();
+
+                results.forEach(result => {
+                    if (result && result.items) {
+                        result.items.forEach(item => {
+                            // Deduplication based on Repo URL
+                            if (!seenUrls.has(item.url)) {
+                                seenUrls.add(item.url);
+                                allItems.push(item);
+                            }
+                        });
+                    }
+                });
+
+                // 5. Sort by "new stars in timeframe" (addStars) descending
+                allItems.sort((a, b) => b.addStars - a.addStars);
+
+                // 6. Process filters
                 let filteredCount = 0;
-
                 const filterRegex = filterTerms.length > 0
                     ? new RegExp(filterTerms.map(term => `\\b${escapeRegExp(term)}\\b`).join('|'), 'i')
                     : null;
 
-                const processedItems = data.items.map(item => {
+                const processedItems = allItems.map(item => {
                     const isFiltered = filterRegex ? filterRegex.test(item.title) || filterRegex.test(item.description) : false;
                     if (isFiltered) {
                         filteredCount++;
@@ -408,6 +632,7 @@
                 displayResults(processedItems);
 
             } catch (error) {
+                console.error(error);
                 resultsContainer.innerHTML = `<p style="color: red;">Error: Could not load trending data.</p>`;
             }
         }
@@ -435,7 +660,43 @@
         }
 
         function applySettingsFromUrl() {
-            const hash = window.location.hash.substring(1); if (!hash) return; const parts = hash.split('/'); if (parts.length === 2) {const [timeframe, language] = parts; if (Array.from(timeframeSelect.options).some(opt => opt.value === timeframe)) timeframeSelect.value = timeframe; if (Array.from(languageSelect.options).some(opt => opt.value === language)) languageSelect.value = language;}
+            const hash = window.location.hash.substring(1);
+            if (!hash) return;
+
+            const parts = hash.split('/');
+            if (parts.length >= 2) {
+                const [timeframe, languageStr] = parts;
+
+                // Set Timeframe
+                if (Array.from(timeframeSelect.options).some(opt => opt.value === timeframe)) {
+                    timeframeSelect.value = timeframe;
+                }
+
+                // Set Languages
+                const selectedLangs = languageStr.split(',');
+                const checkboxes = languageListContainer.querySelectorAll('input[type="checkbox"]');
+                const allCb = languageListContainer.querySelector('input[value="all"]');
+
+                // Reset all first
+                checkboxes.forEach(cb => cb.checked = false);
+
+                let hasSelection = false;
+
+                if (selectedLangs.includes('all') || selectedLangs.length === 0) {
+                    if (allCb) allCb.checked = true;
+                } else {
+                    checkboxes.forEach(cb => {
+                        if (selectedLangs.includes(cb.value)) {
+                            cb.checked = true;
+                            hasSelection = true;
+                        }
+                    });
+                    // If we tried to select specific langs but they don't exist, fallback to all
+                    if (!hasSelection && allCb) {
+                        allCb.checked = true;
+                    }
+                }
+            }
         }
 
         showFilteredToggle.addEventListener('change', () => {
@@ -449,7 +710,7 @@
         addFilterBtn.addEventListener('click', () => {const term = filterTermInput.value.trim().toLowerCase(); if (term && !filterTerms.includes(term)) {filterTerms.push(term); saveFilters(); renderFilterList(); fetchAndDisplayData();} filterTermInput.value = '';});
         filterTermInput.addEventListener('keypress', (e) => {if (e.key === 'Enter') {e.preventDefault(); addFilterBtn.click();} });
         filterListUl.addEventListener('click', (e) => {if (e.target && e.target.dataset.term) {const termToRemove = e.target.dataset.term; filterTerms = filterTerms.filter(t => t !== termToRemove); saveFilters(); renderFilterList(); fetchAndDisplayData();} });
-        languageSelect.addEventListener('change', fetchAndDisplayData);
+
         timeframeSelect.addEventListener('change', fetchAndDisplayData);
 
         document.addEventListener('DOMContentLoaded', async () => {
