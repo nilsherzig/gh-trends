@@ -4,6 +4,7 @@ Big thanks to [isboyjc/github-trending-api](https://github.com/isboyjc/github-tr
 
 ## TODOs
 
+- [ ] proxy and cache data cdn
 - [ ] add own data source
 - [ ] allow sharing of filter lists
 - [ ] add cross language positive filters ("search")
