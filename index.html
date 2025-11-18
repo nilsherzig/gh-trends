@@ -347,8 +347,10 @@
         const showFilteredToggle = document.getElementById('show-filtered-toggle');
 
         let filterTerms = [];
-        const LANGUAGES_URL = 'https://cdn.jsdelivr.net/gh/isboyjc/github-trending-api/data/languages.json';
-        const BASE_TRENDING_URL = 'https://raw.githubusercontent.com/isboyjc/github-trending-api/main/data';
+        // The Nginx server will proxy these requests to the external APIs.
+        // This avoids direct client-side cross-origin requests and allows for caching.
+        const LANGUAGES_URL = '/data/languages.json';
+        const BASE_TRENDING_URL = '/data';
 
         function saveFilters() {localStorage.setItem('githubTrendingFilters', JSON.stringify(filterTerms));}
         function loadFilters() {
