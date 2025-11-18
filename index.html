@@ -70,6 +70,23 @@
         
         .repo.is-filtered-out { display: none; }
         .results-container.show-filtered .repo.is-filtered-out { display: block; opacity: 0.6; border-left: 3px solid var(--warn-color); }
+        
+        /* *** NEW: FOOTER STYLES *** */
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            color: var(--meta-color);
+        }
+        footer a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 
     <script>
@@ -97,7 +114,7 @@
     <div id="results" class="results-container">
         <div class="loader">Loading...</div>
     </div>
-    
+
     <div class="filter-management">
         <h3>Filter Terms</h3>
         <div class="add-filter-form">
@@ -106,6 +123,16 @@
         </div>
         <ul id="filter-list"></ul>
     </div>
+
+    <!-- *** NEW: FOOTER SECTION *** -->
+    <footer>
+        <p>
+            Big thanks to 
+            <a href="https://github.com/isboyjc/github-trending-api/" target="_blank" rel="noopener noreferrer">
+                isboyjc/github-trending-api
+            </a> for providing the data.
+        </p>
+    </footer>
 
     <script>
         const languageSelect = document.getElementById('language-select');
@@ -124,7 +151,7 @@
         function saveFilters() { localStorage.setItem('githubTrendingFilters', JSON.stringify(filterTerms)); }
         function loadFilters() {
             const storedFilters = localStorage.getItem('githubTrendingFilters');
-            filterTerms = storedFilters ? JSON.parse(storedFilters) : ['ai', 'llm', 'rag', 'agent', 'language model'];
+            filterTerms = storedFilters ? JSON.parse(storedFilters) : ['ai', 'llm', 'rag', 'agent', 'language model', "openai", "gguf", "model context protocol", "claude", "gpt", "gpts", "voice cloning"];
             if (!storedFilters) saveFilters();
         }
         function renderFilterList() {
@@ -141,9 +168,8 @@
              try { const response = await fetch(LANGUAGES_URL); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); const languages = await response.json(); languages.forEach(lang => { if (lang && lang.name && Array.isArray(lang.aliases) && lang.aliases.length > 0) { const option = document.createElement('option'); option.value = lang.aliases[0]; option.textContent = lang.name; languageSelect.appendChild(option); } }); } catch (error) { console.error("Failed to fetch languages:", error); }
         }
 
-        // *** NEW: Helper function to escape special regex characters ***
         function escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
         async function fetchAndDisplayData() {
@@ -162,12 +188,8 @@
                 
                 let filteredCount = 0;
                 
-                // *** MODIFIED: Build a "whole word only" regex ***
                 const filterRegex = filterTerms.length > 0 
-                    ? new RegExp(
-                        filterTerms.map(term => `\\b${escapeRegExp(term)}\\b`).join('|'), 
-                        'i'
-                      ) 
+                    ? new RegExp(filterTerms.map(term => `\\b${escapeRegExp(term)}\\b`).join('|'), 'i') 
                     : null;
 
                 const processedItems = data.items.map(item => {
