@@ -70,9 +70,17 @@
 
         .metadata-item {
             border: 1px solid var(--border-color);
-            padding-left: 2px;
-            padding-right: 2px;
+            padding-left: 4px;
+            padding-right: 4px;
             border-radius: 4px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .metadata-item>svg {
+            padding-top: 2px;
         }
 
         .repo {
@@ -106,6 +114,9 @@
         .repo-meta {
             font-size: 0.9em;
             color: var(--meta-color);
+            display: flex;
+            flex-direction: row;
+            gap: 4px;
         }
 
         .loader {
