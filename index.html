@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Trending Repositories</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f6f8fa;
+            color: #24292e;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 10px;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        label {
+            font-weight: bold;
+        }
+        select {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #d1d5da;
+        }
+        #results {
+            border-top: 1px solid #e1e4e8;
+            padding-top: 20px;
+        }
+        .repo {
+            background-color: #fff;
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .repo h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.2em;
+        }
+        .repo a {
+            text-decoration: none;
+            color: #0366d6;
+        }
+        .repo a:hover {
+            text-decoration: underline;
+        }
+        .repo p {
+            margin: 0 0 10px 0;
+            color: #586069;
+        }
+        .repo-meta {
+            font-size: 0.9em;
+            color: #586069;
+        }
+        .loader {
+            text-align: center;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GitHub Trending Repositories (AI Filtered)</h1>
+
+    <div class="controls">
+        <div>
+            <label for="language-select">Language:</label>
+            <select id="language-select">
+                <option value="all">All Languages</option>
+            </select>
+        </div>
+        <div>
+            <label for="timeframe-select">Time Frame:</label>
+            <select id="timeframe-select">
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="results">
+        <div class="loader">Loading...</div>
+    </div>
+
+    <script>
+        const languageSelect = document.getElementById('language-select');
+        const timeframeSelect = document.getElementById('timeframe-select');
+        const resultsContainer = document.getElementById('results');
+
+        const LANGUAGES_URL = 'https://cdn.jsdelivr.net/gh/isboyjc/github-trending-api/data/languages.json';
+        const BASE_TRENDING_URL = 'https://raw.githubusercontent.com/isboyjc/github-trending-api/main/data';
+
+        async function fetchLanguages() {
+            try {
+                const response = await fetch(LANGUAGES_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const languages = await response.json();
+                
+                languages.forEach(lang => {
+                    if (lang && lang.name && Array.isArray(lang.aliases) && lang.aliases.length > 0) {
+                        const option = document.createElement('option');
+                        option.value = lang.aliases[0];
+                        option.textContent = lang.name;
+                        languageSelect.appendChild(option);
+                    } else {
+                        console.warn('Skipping malformed language object from source:', lang);
+                    }
+                });
+            } catch (error) {
+                console.error("Failed to fetch languages:", error);
+                resultsContainer.innerHTML = '<p style="color: red;">Error: Could not load languages list.</p>';
+            }
+        }
+
+        async function fetchAndDisplayData() {
+            const language = languageSelect.value;
+            const timeframe = timeframeSelect.value;
+            
+            if (!language) {
+                resultsContainer.innerHTML = '<p style="color: orange;">Please select a valid language.</p>';
+                return;
+            }
+
+            // *** NEW: Update the URL hash every time we fetch data ***
+            window.location.hash = `${timeframe}/${language}`;
+
+            const url = `${BASE_TRENDING_URL}/${timeframe}/${language}.json`;
+            resultsContainer.innerHTML = '<div class="loader">Fetching data...</div>';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                
+                const filteredItems = data.items.filter(item => 
+                    !/(ai|llm|rag)/i.test(item.title) && !/(ai|llm|rag|agent|language model)/i.test(item.description)
+                );
+
+                displayResults(filteredItems);
+
+            } catch (error) {
+                console.error("Failed to fetch trending data:", error);
+                resultsContainer.innerHTML = `<p style="color: red;">Error: Could not load trending data for ${language} (${timeframe}). Please try another combination.</p>`;
+            }
+        }
+        
+        function displayResults(items) {
+            resultsContainer.innerHTML = ''; 
+
+            if (items.length === 0) {
+                resultsContainer.innerHTML = '<p>No repositories found after filtering for AI-related terms.</p>';
+                return;
+            }
+
+            items.forEach(item => {
+                const repoDiv = document.createElement('div');
+                repoDiv.className = 'repo';
+
+                repoDiv.innerHTML = `
+                    <h2><a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.title}</a></h2>
+                    <p>${item.description || 'No description provided.'}</p>
+                    <div class="repo-meta">
+                        <span>${item.language || 'N/A'}</span> | 
+                        <span>⭐ ${item.stars}</span> | 
+                        <span>🍴 ${item.forks}</span> | 
+                        <span>+${item.addStars} stars ${timeframeSelect.value}</span>
+                    </div>
+                `;
+                resultsContainer.appendChild(repoDiv);
+            });
+        }
+
+        // *** NEW: Function to read the hash and set the dropdowns accordingly ***
+        function applySettingsFromUrl() {
+            const hash = window.location.hash.substring(1); // Remove '#'
+            if (!hash) return;
+
+            const parts = hash.split('/');
+            if (parts.length === 2) {
+                const [timeframe, language] = parts;
+
+                // Check if the values from the URL are valid options
+                if (Array.from(timeframeSelect.options).some(opt => opt.value === timeframe)) {
+                    timeframeSelect.value = timeframe;
+                }
+                 if (Array.from(languageSelect.options).some(opt => opt.value === language)) {
+                    languageSelect.value = language;
+                }
+            }
+        }
+
+
+        languageSelect.addEventListener('change', fetchAndDisplayData);
+        timeframeSelect.addEventListener('change', fetchAndDisplayData);
+
+        // *** UPDATED: The initial page load logic is now more robust ***
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchLanguages();      // 1. Wait for languages to be populated
+            applySettingsFromUrl();      // 2. Set the dropdowns based on the URL hash
+            await fetchAndDisplayData(); // 3. Fetch data based on the final dropdown values
+        });
+    </script>
+
+</body>
+</html>
